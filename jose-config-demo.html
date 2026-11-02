@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>JOSE Proxy Config — Show & Tell</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #273449;
+    --line: #334155;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent-2: #22c55e;
+    --warn: #f59e0b;
+    --danger: #f87171;
+    --chip: #0b4a6f;
+    --radius: 10px;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  header.top {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(90deg, #0b1220, #15223b);
+  }
+  header.top h1 { margin: 0; font-size: 18px; }
+  header.top p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 460px;
+    gap: 20px;
+    padding: 20px 24px;
+    align-items: start;
+  }
+  @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 18px;
+  }
+  .card h2 {
+    margin: 0 0 4px;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card .hint { color: var(--muted); font-size: 12px; margin: 0 0 14px; }
+  .num {
+    display: inline-flex;
+    width: 22px; height: 22px;
+    background: var(--chip);
+    color: var(--accent);
+    border-radius: 50%;
+    align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+  }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  select, input[type=text] {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 9px 10px;
+    font-size: 13px;
+  }
+  select:focus, input:focus { outline: 1px solid var(--accent); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row-3 { display: grid; grid-template-columns: 1.4fr 1fr 0.9fr auto; gap: 8px; align-items: end; }
+  .field { margin-bottom: 12px; }
+  .toggle {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 10px 12px; cursor: pointer;
+  }
+  .toggle input { width: 18px; height: 18px; accent-color: var(--accent-2); }
+  .btn {
+    background: var(--chip); color: var(--accent);
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 8px 12px; cursor: pointer; font-size: 13px;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn.small { padding: 6px 10px; font-size: 12px; }
+  .btn.danger { color: var(--danger); }
+  table { width: 100%; border-collapse: collapse; }
+  .mode-box {
+    background: var(--panel-2);
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 13px;
+  }
+  .mode-box .mode-name { font-family: var(--mono); color: var(--accent-2); font-size: 14px; }
+  .kv { display: flex; justify-content: space-between; padding: 2px 0; }
+  .kv span:first-child { color: var(--muted); }
+  .kv span:last-child { font-family: var(--mono); }
+  .chip-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .chip {
+    background: var(--chip); color: var(--accent);
+    border-radius: 999px; padding: 3px 10px; font-size: 11px;
+    font-family: var(--mono);
+  }
+  .chip.derived { background: #3a2f12; color: var(--warn); }
+  .preview {
+    position: sticky; top: 20px;
+  }
+  pre {
+    margin: 0;
+    background: #0b1220;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+    overflow: auto;
+    max-height: 70vh;
+    font-family: var(--mono);
+    font-size: 12.5px;
+  }
+  .warn-list { margin: 10px 0 0; padding-left: 18px; }
+  .warn-list li { color: var(--warn); font-size: 12px; margin-bottom: 3px; }
+  .ok { color: var(--accent-2); font-size: 12px; }
+  .pill {
+    font-size: 11px; padding: 2px 8px; border-radius: 999px;
+    background: #14304a; color: var(--accent); font-family: var(--mono);
+  }
+  .inline-note { color: var(--muted); font-size: 11px; margin-top: 4px; }
+  .remove-x {
+    background: transparent; border: 1px solid var(--line);
+    color: var(--danger); border-radius: 6px; cursor: pointer;
+    width: 32px; height: 34px; font-size: 14px;
+  }
+  .json-key { color: #7dd3fc; }
+  .json-str { color: #86efac; }
+  .json-num { color: #fca5a5; }
+  .json-bool { color: #f0abfc; }
+  .json-null { color: #94a3b8; }
+  .section-flag { margin-left: auto; }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>JOSE Proxy Config — Show &amp; Tell</h1>
+  <p>Pick a profile, set header validation and crit, toggle Open Banking. The KVM JSON on the right updates live, and derived values are computed exactly as agreed.</p>
+</header>
+
+<div class="layout">
+  <!-- LEFT: form -->
+  <div>
+
+    <!-- Profile -->
+    <div class="card">
+      <h2><span class="num">1</span> JWS profile
+        <span class="section-flag pill" id="modePill">COMPACT_DETACHED</span>
+      </h2>
+      <p class="hint">Same three options for Apigee-created and Akana-migrated configs.</p>
+      <div class="field">
+        <label>Profile</label>
+        <select id="profile">
+          <option value="COMPACT">COMPACT — attached (header.payload.signature)</option>
+          <option value="COMPACT_DETACHED" selected>COMPACT_DETACHED — detached, Appendix F (Base64URL body)</option>
+          <option value="COMPACT_DETACHED_UNENCODED">COMPACT_DETACHED_UNENCODED — detached, RFC 7797 (raw body, b64=false)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Signature algorithm</label>
+        <select id="algorithm">
+          <option>PS256</option>
+          <option>RS256</option>
+          <option>ES256</option>
+          <option>PS384</option>
+          <option>RS384</option>
+        </select>
+      </div>
+      <div class="mode-box">
+        <div class="kv"><span>Effective mode</span><span class="mode-name" id="effMode">COMPACT_DETACHED</span></div>
+        <div class="kv"><span>JWS on the wire</span><span id="wire">header..signature</span></div>
+        <div class="kv"><span>Signing input payload</span><span id="signInput">BASE64URL(body)</span></div>
+        <div class="kv"><span>b64 header</span><span id="b64state">absent</span></div>
+      </div>
+    </div>
+
+    <!-- Protection scope -->
+    <div class="card">
+      <h2><span class="num">2</span> Protection scope</h2>
+      <p class="hint">Which messages the policy protects. IN verifies the request; OUT signs the response; FAULT signs the error response.</p>
+      <div class="row" style="grid-template-columns:1fr 1fr 1fr;">
+        <label class="toggle"><input type="checkbox" id="scopeIn" checked /><span>IN (verify request)</span></label>
+        <label class="toggle"><input type="checkbox" id="scopeOut" checked /><span>OUT (sign response)</span></label>
+        <label class="toggle"><input type="checkbox" id="scopeFault" /><span>FAULT (sign error)</span></label>
+      </div>
+    </div>
+
+    <!-- Source -->
+    <div class="card">
+      <h2><span class="num">3</span> JWS source</h2>
+      <p class="hint">Where the serialized JWS is read (IN) and written (OUT/FAULT). MESSAGE_BODY is fixed to <code>message.content</code>.</p>
+      <div class="row">
+        <div class="field">
+          <label>Location</label>
+          <select id="srcLocation">
+            <option value="HEADER" selected>HEADER</option>
+            <option value="MESSAGE_BODY">MESSAGE_BODY</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Name</label>
+          <input type="text" id="srcName" value="x-jws-signature" />
+          <div class="inline-note" id="srcNote">HTTP header carrying the detached signature.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Header validation -->
+    <div class="card">
+      <h2><span class="num">4</span> Header validation</h2>
+      <p class="hint">Static protected-header key/value checks. Reserved names (alg, kid, crit, b64, enc) are blocked. Tick <b>Critical</b> to also add the name to <code>crit</code>.</p>
+      <div id="headerRows"></div>
+      <button class="btn small" id="addHeader">+ Add header</button>
+      <div id="headerWarn"></div>
+    </div>
+
+    <!-- Open Banking -->
+    <div class="card">
+      <h2><span class="num">5</span> UK Open Banking 3.1</h2>
+      <p class="hint">Enabling OB forces a detached profile, PS256, source header <code>x-jws-signature</code>, and adds iat/iss/tan to crit automatically.</p>
+      <label class="toggle" id="obToggle">
+        <input type="checkbox" id="obEnabled" />
+        <span>Enable Open Banking 3.1</span>
+      </label>
+      <div class="inline-note" id="obDisabledNote" style="display:none; color:var(--warn);">Open Banking needs a detached profile — not available for COMPACT.</div>
+      <div id="obPanel" style="display:none; margin-top:12px;">
+        <div class="mode-box">
+          <div class="kv"><span>tan</span><span>resolved from environment KVM</span></div>
+          <div class="kv"><span>iat future skew</span><span>120 s</span></div>
+          <div class="kv"><span>iat maximum age</span><span>none</span></div>
+          <div class="kv"><span>iss validation</span><span style="color:var(--warn)">pending (case 01676299)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Effective crit -->
+    <div class="card">
+      <h2><span class="num">6</span> Effective <code>crit</code></h2>
+      <p class="hint">Configured custom criticals plus whatever the profile and Open Banking require.</p>
+      <div>
+        <div style="font-size:12px;color:var(--muted)">Configured (from header rows):</div>
+        <div class="chip-list" id="critConfigured"><span class="inline-note">none</span></div>
+      </div>
+      <div style="margin-top:10px;">
+        <div style="font-size:12px;color:var(--muted)">Derived (added by the shared flow):</div>
+        <div class="chip-list" id="critDerived"><span class="inline-note">none</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT: preview -->
+  <div class="preview">
+    <div class="card">
+      <h2>KVM configuration (live)
+        <span class="section-flag"><button class="btn small" id="copyBtn">Copy</button></span>
+      </h2>
+      <p class="hint">This is what gets saved to the proxy KVM. Derived JOSE headers are not stored here.</p>
+      <pre id="jsonOut"></pre>
+      <div id="validity"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const RESERVED = ["alg","kid","crit","b64","enc"];
+const OB_CRIT = [
+  "http://openbanking.org.uk/iat",
+  "http://openbanking.org.uk/iss",
+  "http://openbanking.org.uk/tan"
+];
+// state: header rows
+let headers = [
+  { name: "cty", type: "string", value: "application/json", critical: false }
+];
+
+const $ = (id) => document.getElementById(id);
+
+function renderHeaderRows() {
+  const wrap = $("headerRows");
+  wrap.innerHTML = "";
+  headers.forEach((h, i) => {
+    const row = document.createElement("div");
+    row.className = "row-3";
+    row.style.marginBottom = "8px";
+    row.innerHTML = `
+      <div>
+        ${i === 0 ? '<label>Header name</label>' : ''}
+        <input type="text" value="${escapeAttr(h.name)}" data-i="${i}" data-f="name" placeholder="x-message-profile" />
+      </div>
+      <div>
+        ${i === 0 ? '<label>Value</label>' : ''}
+        <input type="text" value="${escapeAttr(String(h.value))}" data-i="${i}" data-f="value" placeholder="value" />
+      </div>
+      <div>
+        ${i === 0 ? '<label>Type</label>' : ''}
+        <select data-i="${i}" data-f="type">
+          <option value="string"${h.type==='string'?' selected':''}>string</option>
+          <option value="number"${h.type==='number'?' selected':''}>number</option>
+          <option value="boolean"${h.type==='boolean'?' selected':''}>boolean</option>
+        </select>
+      </div>
+      <div style="display:flex; gap:6px; align-items:center;">
+        <label class="toggle" style="padding:6px 8px;" title="Mark as critical (adds to crit)">
+          <input type="checkbox" data-i="${i}" data-f="critical" ${h.critical?'checked':''} />
+          <span style="font-size:11px;">crit</span>
+        </label>
+        <button class="remove-x" data-del="${i}" title="Remove">&times;</button>
+      </div>
+    `;
+    wrap.appendChild(row);
+  });
+
+  wrap.querySelectorAll("input,select").forEach(el => {
+    el.addEventListener("input", onHeaderEdit);
+    el.addEventListener("change", onHeaderEdit);
+  });
+  wrap.querySelectorAll("[data-del]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      headers.splice(Number(btn.dataset.del), 1);
+      renderHeaderRows();
+      update();
+    });
+  });
+}
+
+function onHeaderEdit(e) {
+  const i = Number(e.target.dataset.i);
+  const f = e.target.dataset.f;
+  if (f === "critical") headers[i].critical = e.target.checked;
+  else headers[i][f] = e.target.value;
+  update();
+}
+
+function escapeAttr(s) { return String(s).replace(/"/g, "&quot;"); }
+
+function coerce(type, value) {
+  if (type === "number") { const n = Number(value); return isNaN(n) ? value : n; }
+  if (type === "boolean") return value === "true" || value === true;
+  return value;
+}
+
+// derive effective mode wire behaviour
+function modeInfo(profile) {
+  switch (profile) {
+    case "COMPACT":
+      return { wire: "header.payload.signature", sign: "BASE64URL(payload)", b64: "absent", detached: false };
+    case "COMPACT_DETACHED":
+      return { wire: "header..signature", sign: "BASE64URL(body)", b64: "absent", detached: true };
+    case "COMPACT_DETACHED_UNENCODED":
+      return { wire: "header..signature", sign: "raw body bytes", b64: "false (in crit)", detached: true };
+  }
+}
+
+function update() {
+  const profile = $("profile").value;
+  const algorithm = $("algorithm").value;
+
+  // Open Banking is only valid for detached profiles — disable for COMPACT
+  const obAllowed = profile !== "COMPACT";
+  if (!obAllowed) $("obEnabled").checked = false;
+  $("obEnabled").disabled = !obAllowed;
+  $("obToggle").style.opacity = obAllowed ? "1" : "0.5";
+  $("obToggle").style.cursor = obAllowed ? "pointer" : "not-allowed";
+  $("obDisabledNote").style.display = obAllowed ? "none" : "block";
+
+  const obEnabled = $("obEnabled").checked;
+  const scopeIn = $("scopeIn").checked;
+  const scopeOut = $("scopeOut").checked;
+  const scopeFault = $("scopeFault").checked;
+  const info = modeInfo(profile);
+
+  // OB forces detached + PS256 + header source
+  if (obEnabled && profile === "COMPACT") {
+    // visually flag; keep user choice but warn
+  }
+
+  // source
+  let srcLocation = $("srcLocation").value;
+  let srcName = $("srcName").value;
+  if (srcLocation === "MESSAGE_BODY") {
+    srcName = "message.content";
+    $("srcName").value = srcName;
+    $("srcName").disabled = true;
+    $("srcNote").textContent = "Fixed to message.content for MESSAGE_BODY.";
+  } else {
+    $("srcName").disabled = false;
+    $("srcNote").textContent = "HTTP header carrying the detached signature.";
+  }
+
+  // mode box
+  $("effMode").textContent = profile;
+  $("modePill").textContent = profile;
+  $("wire").textContent = info.wire;
+  $("signInput").textContent = info.sign;
+  $("b64state").textContent = info.b64;
+
+  // OB panel
+  $("obPanel").style.display = obEnabled ? "block" : "none";
+
+  // header validation object + configured crit + warnings
+  const headerValidation = {};
+  const configuredCrit = [];
+  const warnings = [];
+  const seen = new Set();
+
+  headers.forEach(h => {
+    const name = (h.name || "").trim();
+    if (!name) return;
+    if (RESERVED.includes(name.toLowerCase())) {
+      warnings.push(`"${name}" is reserved and is managed by the runtime — remove it from header validation.`);
+      return;
+    }
+    if (seen.has(name)) { warnings.push(`Duplicate header "${name}".`); return; }
+    seen.add(name);
+    headerValidation[name] = coerce(h.type, h.value);
+    if (h.critical) configuredCrit.push(name);
+  });
+
+  // derived crit
+  const derivedCrit = [];
+  if (profile === "COMPACT_DETACHED_UNENCODED") derivedCrit.push("b64");
+  if (obEnabled) OB_CRIT.forEach(c => derivedCrit.push(c));
+
+  renderChips("critConfigured", configuredCrit, false);
+  renderChips("critDerived", derivedCrit, true);
+
+  // build KVM
+  const kvm = {
+    configVersion: 2,
+    flags: {
+      jwsVerify: scopeIn,
+      jwsGenerate: scopeOut,
+      jwsFault: scopeFault
+    },
+    privateKeyIdentifier: "space",
+    jws: {
+      algorithm: obEnabled ? "PS256" : algorithm,
+      profile: profile,
+      source: srcLocation === "MESSAGE_BODY"
+        ? { location: "MESSAGE_BODY", name: "message.content" }
+        : { location: "HEADER", name: srcName },
+      headerValidation: headerValidation,
+      criticalHeaders: configuredCrit
+    }
+  };
+  if (obEnabled) {
+    kvm.jws.openBanking = { enabled: true, version: "3.1" };
+  }
+
+  $("jsonOut").innerHTML = syntaxHighlight(kvm);
+
+  // validation / OB rule checks
+  if (obEnabled) {
+    if (profile === "COMPACT")
+      warnings.push("Open Banking requires a detached profile — switch to COMPACT_DETACHED or COMPACT_DETACHED_UNENCODED.");
+    if (srcLocation !== "HEADER")
+      warnings.push("Open Banking requires source.location = HEADER.");
+    if (srcLocation === "HEADER" && srcName !== "x-jws-signature")
+      warnings.push("Open Banking expects source.name = x-jws-signature.");
+    if (algorithm !== "PS256")
+      warnings.push("Open Banking forces PS256 (algorithm overridden in the KVM preview).");
+  }
+  if (info.detached && srcLocation === "MESSAGE_BODY")
+    warnings.push("Detached profiles must use a HEADER source, not MESSAGE_BODY.");
+
+  renderWarnings(warnings);
+}
+
+function renderChips(id, list, derived) {
+  const el = $(id);
+  if (!list.length) { el.innerHTML = '<span class="inline-note">none</span>'; return; }
+  el.innerHTML = list.map(c => `<span class="chip${derived?' derived':''}">${c}</span>`).join("");
+}
+
+function renderWarnings(warnings) {
+  const el = $("validity");
+  if (!warnings.length) {
+    el.innerHTML = '<div class="ok">✓ Configuration is consistent with the agreed rules.</div>';
+    return;
+  }
+  el.innerHTML = '<ul class="warn-list">' + warnings.map(w => `<li>${w}</li>`).join("") + '</ul>';
+}
+
+function syntaxHighlight(obj) {
+  let json = JSON.stringify(obj, null, 2);
+  json = json.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return json.replace(
+    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+    (match) => {
+      let cls = "json-num";
+      if (/^"/.test(match)) {
+        cls = /:$/.test(match) ? "json-key" : "json-str";
+      } else if (/true|false/.test(match)) cls = "json-bool";
+      else if (/null/.test(match)) cls = "json-null";
+      return `<span class="${cls}">${match}</span>`;
+    }
+  );
+}
+
+// wire up events
+["profile","algorithm","srcLocation","srcName","obEnabled","scopeIn","scopeOut","scopeFault"].forEach(id => {
+  $(id).addEventListener("input", update);
+  $(id).addEventListener("change", update);
+});
+$("addHeader").addEventListener("click", () => {
+  headers.push({ name: "", type: "string", value: "", critical: false });
+  renderHeaderRows();
+  update();
+});
+$("copyBtn").addEventListener("click", () => {
+  navigator.clipboard.writeText($("jsonOut").textContent).then(() => {
+    $("copyBtn").textContent = "Copied";
+    setTimeout(() => $("copyBtn").textContent = "Copy", 1200);
+  });
+});
+
+// Open Banking quick-default: when enabled, nudge to compliant settings
+$("obEnabled").addEventListener("change", () => {
+  if ($("obEnabled").checked) {
+    if ($("profile").value === "COMPACT") $("profile").value = "COMPACT_DETACHED";
+    $("srcLocation").value = "HEADER";
+    $("srcName").value = "x-jws-signature";
+    $("algorithm").value = "PS256";
+  }
+  update();
+});
+
+renderHeaderRows();
+update();
+</script>
+</body>
+</html>
