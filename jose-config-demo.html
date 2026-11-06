@@ -21,6 +21,7 @@
     --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   }
   * { box-sizing: border-box; }
+  html, body { max-width: 100%; overflow-x: hidden; }
   body {
     margin: 0;
     background: var(--bg);
@@ -38,12 +39,23 @@
   header.top p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
   .layout {
     display: grid;
-    grid-template-columns: 1fr 460px;
+    grid-template-columns: minmax(0, 1fr) 460px;
     gap: 20px;
     padding: 20px 24px;
     align-items: start;
+    max-width: 1600px;
+    margin: 0 auto;
   }
-  @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+  .layout > * { min-width: 0; }
+  /* laptop: narrow the preview column so the form keeps enough room */
+  @media (max-width: 1366px) {
+    .layout { grid-template-columns: minmax(0, 1fr) 400px; gap: 16px; padding: 16px 20px; }
+  }
+  /* small laptop: stack the live preview under the form */
+  @media (max-width: 1180px) {
+    .layout { grid-template-columns: 1fr; }
+    .preview { position: static; }
+  }
   .card {
     background: var(--panel);
     border: 1px solid var(--line);
@@ -69,8 +81,11 @@
     font-size: 12px; font-weight: 700;
   }
   label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
-  select, input[type=text] {
+  select, input[type=text], input[type=number] {
+    display: block;
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
     background: var(--panel-2);
     border: 1px solid var(--line);
     color: var(--text);
@@ -78,9 +93,15 @@
     padding: 9px 10px;
     font-size: 13px;
   }
+  /* keep long option text from overflowing the control */
+  select { text-overflow: ellipsis; }
   select:focus, input:focus { outline: 1px solid var(--accent); }
+  .field { min-width: 0; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row > * { min-width: 0; }
+  .row-scope { grid-template-columns: 1fr 1fr 1fr; }
   .row-3 { display: grid; grid-template-columns: 1.4fr 1fr 0.9fr auto; gap: 8px; align-items: end; }
+  .row-3 > * { min-width: 0; }
   .field { margin-bottom: 12px; }
   .toggle {
     display: flex; align-items: center; gap: 10px;
@@ -105,9 +126,9 @@
     font-size: 13px;
   }
   .mode-box .mode-name { font-family: var(--mono); color: var(--accent-2); font-size: 14px; }
-  .kv { display: flex; justify-content: space-between; padding: 2px 0; }
-  .kv span:first-child { color: var(--muted); }
-  .kv span:last-child { font-family: var(--mono); }
+  .kv { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; }
+  .kv span:first-child { color: var(--muted); flex: 0 0 auto; }
+  .kv span:last-child { font-family: var(--mono); text-align: right; word-break: break-word; min-width: 0; }
   .chip-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
   .chip {
     background: var(--chip); color: var(--accent);
@@ -148,6 +169,31 @@
   .json-bool { color: #f0abfc; }
   .json-null { color: #94a3b8; }
   .section-flag { margin-left: auto; }
+  /* header claims editor */
+  .claim-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .claim-toolbar select { flex: 1 1 200px; width: auto; min-width: 0; }
+  .claim-toolbar .btn { flex: 0 0 auto; white-space: nowrap; }
+  .claim-group-title {
+    font-size: 11px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.05em; margin: 14px 0 6px;
+  }
+  .claim-row {
+    display: grid; grid-template-columns: 0.9fr 1.7fr 0.8fr auto;
+    gap: 8px; align-items: center; margin-bottom: 8px;
+  }
+  .claim-row > * { min-width: 0; }
+  .claim-name {
+    font-family: var(--mono); color: var(--accent); background: #14304a;
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 13px;
+  }
+  .claim-actions { display: flex; gap: 6px; align-items: center; }
+  .claim-actions .toggle { padding: 6px 8px; margin: 0; }
+  .claim-actions .toggle span { font-size: 11px; }
+  .value-pick { display: grid; gap: 6px; min-width: 0; }
+  .with-unit { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .with-unit input { width: 110px; flex: 0 0 auto; }
+  .with-unit span { color: var(--muted); font-size: 12px; }
+  .claim-note { grid-column: 1 / -1; margin-top: 0; }
 </style>
 </head>
 <body>
@@ -196,7 +242,7 @@
     <div class="card">
       <h2><span class="num">2</span> Protection scope</h2>
       <p class="hint">Which messages the policy protects. IN verifies the request; OUT signs the response; FAULT signs the error response.</p>
-      <div class="row" style="grid-template-columns:1fr 1fr 1fr;">
+      <div class="row row-scope">
         <label class="toggle"><input type="checkbox" id="scopeIn" checked /><span>IN (verify request)</span></label>
         <label class="toggle"><input type="checkbox" id="scopeOut" checked /><span>OUT (sign response)</span></label>
         <label class="toggle"><input type="checkbox" id="scopeFault" /><span>FAULT (sign error)</span></label>
@@ -226,10 +272,14 @@
     <!-- Header validation -->
     <div class="card">
       <h2><span class="num">4</span> Header validation</h2>
-      <p class="hint">Static protected-header key/value checks. Reserved names (alg, kid, crit, b64, enc) are blocked. Tick <b>Critical</b> to also add the name to <code>crit</code>.</p>
+      <p class="hint">Protected-header checks. Pick a known claim from the list, or use <b>+ Custom claim</b> for any other name. Reserved names (alg, kid, crit, b64, enc) are blocked. Tick <b>crit</b> to also add the name to <code>crit</code>.</p>
+      <div class="claim-toolbar">
+        <select id="knownClaimPicker" aria-label="Add a known claim">
+          <option value="">Add a known claim…</option>
+        </select>
+        <button class="btn small" id="addCustom">+ Custom claim</button>
+      </div>
       <div id="headerRows"></div>
-      <button class="btn small" id="addHeader">+ Add header</button>
-      <div id="headerWarn"></div>
     </div>
 
     <!-- Open Banking -->
@@ -243,6 +293,7 @@
       <div class="inline-note" id="obDisabledNote" style="display:none; color:var(--warn);">Open Banking needs a detached profile — not available for COMPACT.</div>
       <div id="obPanel" style="display:none; margin-top:12px;">
         <div class="mode-box">
+          <div class="kv"><span>typ</span><span>JOSE (optional on IN)</span></div>
           <div class="kv"><span>tan</span><span>resolved from environment KVM</span></div>
           <div class="kv"><span>iat future skew</span><span>120 s</span></div>
           <div class="kv"><span>iat maximum age</span><span>none</span></div>
@@ -262,6 +313,50 @@
       <div style="margin-top:10px;">
         <div style="font-size:12px;color:var(--muted)">Derived (added by the shared flow):</div>
         <div class="chip-list" id="critDerived"><span class="inline-note">none</span></div>
+      </div>
+    </div>
+
+    <!-- JWE -->
+    <div class="card">
+      <h2><span class="num">7</span> JWE (encryption)</h2>
+      <p class="hint">Optional. When enabled, the proxy decrypts the request and encrypts the response. The key/content algorithms and a separate header-validation block are saved under <code>jwe</code>.</p>
+      <label class="toggle" id="jweToggle">
+        <input type="checkbox" id="jweEnabled" />
+        <span>Enable JWE</span>
+      </label>
+      <div id="jwePanel" style="display:none; margin-top:12px;">
+        <div class="row">
+          <div class="field">
+            <label>Key management (<code>alg</code>)</label>
+            <select id="jweKey">
+              <option>RSA-OAEP-256</option>
+              <option>RSA-OAEP</option>
+              <option>ECDH-ES</option>
+              <option>ECDH-ES+A256KW</option>
+              <option>A256KW</option>
+              <option>A256GCMKW</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Content encryption (<code>enc</code>)</label>
+            <select id="jweContent">
+              <option>A256GCM</option>
+              <option>A128GCM</option>
+              <option>A192GCM</option>
+              <option>A128CBC-HS256</option>
+              <option>A256CBC-HS512</option>
+            </select>
+          </div>
+        </div>
+        <label style="margin-top:4px;">JWE header validation</label>
+        <p class="hint">Same editor as JWS, but only <b>typ</b> and <b>cty</b> are known claims; use <b>+ Custom claim</b> for anything else. Saved under <code>jwe.headerValidation</code>. Reserved names (alg, kid, crit, b64, enc) are blocked.</p>
+        <div class="claim-toolbar">
+          <select id="jweKnownClaimPicker" aria-label="Add a known JWE claim">
+            <option value="">Add a known claim…</option>
+          </select>
+          <button class="btn small" id="jweAddCustom">+ Custom claim</button>
+        </div>
+        <div id="jweHeaderRows"></div>
       </div>
     </div>
 
@@ -287,73 +382,271 @@ const OB_CRIT = [
   "http://openbanking.org.uk/iss",
   "http://openbanking.org.uk/tan"
 ];
-// state: header rows
-let headers = [
-  { name: "cty", type: "string", value: "application/json", critical: false }
-];
+// Known header claims offered in the dropdown. Add an entry here to offer another known claim.
+// Known header claims. "options" gives a value dropdown (plus "Other…"); "freeText" gives a plain
+// input; exp is a number clamped to a 0–300 second clock-skew window.
+const KNOWN_CLAIMS = {
+  cty: { label: "cty — content type of the payload", type: "string", value: "application/json",
+         options: ["application/json", "application/jose", "application/jose+json", "text/plain"] },
+  typ: { label: "typ — type of the token", type: "string", value: "JOSE",
+         options: ["JOSE", "JOSE+JSON", "JWT", "JWE"] },
+  exp: { label: "exp — clock skew (0–300 s)", type: "number", value: 300, min: 0, max: 300 },
+  aud: { label: "aud — audience", type: "string", value: "", freeText: true },
+  iss: { label: "iss — issuer", type: "string", value: "", freeText: true }
+};
+const EXP_MIN = KNOWN_CLAIMS.exp.min;
+const EXP_MAX = KNOWN_CLAIMS.exp.max;
+const OTHER = "__other__";
 
 const $ = (id) => document.getElementById(id);
 
-function renderHeaderRows() {
-  const wrap = $("headerRows");
-  wrap.innerHTML = "";
-  headers.forEach((h, i) => {
-    const row = document.createElement("div");
-    row.className = "row-3";
-    row.style.marginBottom = "8px";
-    row.innerHTML = `
-      <div>
-        ${i === 0 ? '<label>Header name</label>' : ''}
-        <input type="text" value="${escapeAttr(h.name)}" data-i="${i}" data-f="name" placeholder="x-message-profile" />
-      </div>
-      <div>
-        ${i === 0 ? '<label>Value</label>' : ''}
-        <input type="text" value="${escapeAttr(String(h.value))}" data-i="${i}" data-f="value" placeholder="value" />
-      </div>
-      <div>
-        ${i === 0 ? '<label>Type</label>' : ''}
-        <select data-i="${i}" data-f="type">
-          <option value="string"${h.type==='string'?' selected':''}>string</option>
-          <option value="number"${h.type==='number'?' selected':''}>number</option>
-          <option value="boolean"${h.type==='boolean'?' selected':''}>boolean</option>
-        </select>
-      </div>
-      <div style="display:flex; gap:6px; align-items:center;">
-        <label class="toggle" style="padding:6px 8px;" title="Mark as critical (adds to crit)">
-          <input type="checkbox" data-i="${i}" data-f="critical" ${h.critical?'checked':''} />
-          <span style="font-size:11px;">crit</span>
-        </label>
-        <button class="remove-x" data-del="${i}" title="Remove">&times;</button>
-      </div>
-    `;
-    wrap.appendChild(row);
-  });
+/*
+ * A header-claims editor. Two instances exist: the JWS editor (all known claims, crit toggles,
+ * Open Banking "typ" handling) and the JWE editor (only typ + cty known, crit hidden).
+ *   rowsId      id of the container the rows render into
+ *   pickerId    id of the "add a known claim" <select>
+ *   knownNames  which KNOWN_CLAIMS entries this editor offers
+ *   supportsCrit whether rows show a crit checkbox
+ */
+function ClaimEditor(opts) {
+  this.rowsId = opts.rowsId;
+  this.pickerId = opts.pickerId;
+  this.knownNames = opts.knownNames;
+  this.supportsCrit = !!opts.supportsCrit;
+  this.headers = (opts.initial || []).map(h => Object.assign({}, h));
+}
 
+ClaimEditor.prototype.render = function () {
+  const wrap = $(this.rowsId);
+  const known = [], custom = [];
+  this.headers.forEach((h, i) => (h.kind === "known" ? known : custom).push(i));
+  let html = "";
+  if (known.length) html += '<div class="claim-group-title">Known claims</div>' + known.map(i => this.knownRowHtml(i)).join("");
+  if (custom.length) html += '<div class="claim-group-title">Custom claims</div>' + custom.map(i => this.customRowHtml(i)).join("");
+  if (!html) html = '<div class="inline-note" style="margin-top:10px;">No header claims. Pick a known claim or add a custom one.</div>';
+  wrap.innerHTML = html;
+
+  const self = this;
   wrap.querySelectorAll("input,select").forEach(el => {
-    el.addEventListener("input", onHeaderEdit);
-    el.addEventListener("change", onHeaderEdit);
+    const evt = (el.tagName === "SELECT" || el.type === "checkbox") ? "change" : "input";
+    el.addEventListener(evt, e => self.onEdit(e));
   });
   wrap.querySelectorAll("[data-del]").forEach(btn => {
     btn.addEventListener("click", () => {
-      headers.splice(Number(btn.dataset.del), 1);
-      renderHeaderRows();
+      self.headers.splice(Number(btn.dataset.del), 1);
+      self.render();
       update();
     });
   });
-}
+};
 
-function onHeaderEdit(e) {
-  const i = Number(e.target.dataset.i);
+ClaimEditor.prototype.critAndRemoveHtml = function (h, i) {
+  const crit = this.supportsCrit
+    ? `<label class="toggle" title="Mark as critical (adds to crit)">
+        <input type="checkbox" data-i="${i}" data-f="critical" ${h.critical ? "checked" : ""} />
+        <span>crit</span>
+      </label>`
+    : "";
+  return `<div class="claim-actions">
+      ${crit}
+      <button class="remove-x" data-del="${i}" title="Remove">&times;</button>
+    </div>`;
+};
+
+ClaimEditor.prototype.knownRowHtml = function (i) {
+  const h = this.headers[i];
+  const k = KNOWN_CLAIMS[h.name];
+  let valueCtl;
+  if (k.type === "number") {
+    valueCtl = `<div class="with-unit">
+        <input type="number" min="${k.min}" max="${k.max}" step="1" value="${escapeAttr(h.value)}" data-i="${i}" data-f="value" aria-label="${h.name} clock skew seconds" />
+        <span>seconds clock skew (${k.min}–${k.max})</span>
+      </div>`;
+  } else if (k.freeText) {
+    valueCtl = `<input type="text" value="${escapeAttr(h.value)}" data-i="${i}" data-f="value" placeholder="${h.name} value" aria-label="${h.name} value" />`;
+  } else {
+    const isOther = h.otherValue || !k.options.includes(h.value);
+    const opts = k.options.map(o =>
+      `<option value="${escapeAttr(o)}"${!isOther && o === h.value ? " selected" : ""}>${escapeAttr(o)}</option>`).join("");
+    valueCtl = `<div class="value-pick">
+        <select data-i="${i}" data-f="valuePick" aria-label="${h.name} value">${opts}<option value="${OTHER}"${isOther ? " selected" : ""}>Other…</option></select>
+        ${isOther ? `<input type="text" value="${escapeAttr(h.value)}" data-i="${i}" data-f="value" placeholder="${h.name} value" />` : ""}
+      </div>`;
+  }
+  return `<div class="claim-row">
+      <div class="claim-name" title="${escapeAttr(k.label)}">${h.name}</div>
+      ${valueCtl}
+      <div><span class="pill">${k.type}</span></div>
+      ${this.critAndRemoveHtml(h, i)}
+      ${h.name === "exp" ? `<div class="inline-note claim-note" data-exp-note="${this.rowsId}:${i}"></div>` : ""}
+    </div>`;
+};
+
+ClaimEditor.prototype.customRowHtml = function (i) {
+  const h = this.headers[i];
+  let valueCtl;
+  if (h.type === "boolean") {
+    const t = String(h.value) === "true";
+    valueCtl = `<select data-i="${i}" data-f="value" aria-label="claim value">
+        <option value="true"${t ? " selected" : ""}>true</option>
+        <option value="false"${t ? "" : " selected"}>false</option>
+      </select>`;
+  } else {
+    valueCtl = `<input type="${h.type === "number" ? "number" : "text"}" value="${escapeAttr(h.value)}" data-i="${i}" data-f="value" placeholder="value" aria-label="claim value" />`;
+  }
+  const types = ["string", "number", "boolean"].map(t =>
+    `<option value="${t}"${h.type === t ? " selected" : ""}>${t}</option>`).join("");
+  return `<div class="claim-row">
+      <input type="text" value="${escapeAttr(h.name)}" data-i="${i}" data-f="name" placeholder="x-message-profile" aria-label="claim name" />
+      ${valueCtl}
+      <select data-i="${i}" data-f="type" aria-label="claim type">${types}</select>
+      ${this.critAndRemoveHtml(h, i)}
+    </div>`;
+};
+
+ClaimEditor.prototype.onEdit = function (e) {
+  const h = this.headers[Number(e.target.dataset.i)];
   const f = e.target.dataset.f;
-  if (f === "critical") headers[i].critical = e.target.checked;
-  else headers[i][f] = e.target.value;
+  if (!h) return;
+  if (f === "critical") {
+    h.critical = e.target.checked;
+  } else if (f === "valuePick") {
+    // "Other…" keeps the current value and shows a text box for a custom value
+    if (e.target.value === OTHER) h.otherValue = true;
+    else { h.otherValue = false; h.value = e.target.value; }
+    this.render();
+  } else if (f === "type") {
+    h.type = e.target.value;
+    if (h.type === "boolean") h.value = String(h.value) === "true" ? "true" : "false";
+    if (h.type === "number" && typeof coerce("number", h.value) !== "number") h.value = "";
+    this.render();
+  } else {
+    h[f] = e.target.value;
+  }
   update();
+};
+
+ClaimEditor.prototype.addCustom = function () {
+  this.headers.push({ kind: "custom", name: "", type: "string", value: "", critical: false });
+  this.render();
+  update();
+  const names = $(this.rowsId).querySelectorAll('input[data-f="name"]');
+  if (names.length) names[names.length - 1].focus();
+};
+
+ClaimEditor.prototype.initPicker = function () {
+  const sel = $(this.pickerId);
+  const self = this;
+  this.knownNames.forEach(name => {
+    const o = document.createElement("option");
+    o.value = name;
+    o.textContent = KNOWN_CLAIMS[name].label;
+    sel.appendChild(o);
+  });
+  sel.addEventListener("change", () => {
+    const name = sel.value;
+    sel.value = "";
+    if (!KNOWN_CLAIMS[name] || self.headers.some(h => h.kind === "known" && h.name === name)) return;
+    const k = KNOWN_CLAIMS[name];
+    self.headers.push({ kind: "known", name: name, type: k.type, value: k.value, critical: false });
+    self.render();
+    update();
+  });
+};
+
+// known claims already added (and, for JWS, typ while Open Banking sets it) are greyed out
+ClaimEditor.prototype.refreshPicker = function (obEnabled) {
+  const self = this;
+  Array.from($(this.pickerId).options).forEach(o => {
+    if (!o.value) return;
+    const added = self.headers.some(h => h.kind === "known" && h.name === o.value);
+    const obManaged = self.supportsCrit && o.value === "typ" && obEnabled;
+    o.disabled = added || obManaged;
+    o.textContent = KNOWN_CLAIMS[o.value].label + (added ? " (added)" : obManaged ? " (set by Open Banking)" : "");
+  });
+};
+
+/*
+ * Reads an editor's rows into a headerValidation object + configured crit list, pushing any
+ * problems into `warnings`. `obEnabled` only matters for the JWS editor (it manages typ).
+ */
+function collectClaims(editor, obEnabled, warnings) {
+  const headerValidation = {};
+  const configuredCrit = [];
+  const seen = {};
+  editor.refreshPicker(obEnabled);
+  editor.headers.forEach(h => {
+    const name = (h.name || "").trim();
+    if (!name) {
+      if (h.kind === "custom") warnings.push("A custom claim has no name — enter a name or remove the row.");
+      return;
+    }
+    if (h.kind === "custom") {
+      if (RESERVED.includes(name.toLowerCase())) {
+        warnings.push(`"${name}" is reserved and is managed by the runtime — remove it from header validation.`);
+        return;
+      }
+      if (KNOWN_CLAIMS[name] && editor.knownNames.includes(name)) {
+        warnings.push(`"${name}" is a known claim — add it from the known-claim list instead.`);
+        return;
+      }
+      if (OB_CRIT.includes(name)) {
+        warnings.push(`"${name}" is managed by Open Banking — it cannot be a custom claim.`);
+        return;
+      }
+    }
+    if (seen[name]) { warnings.push(`Duplicate header "${name}".`); return; }
+    seen[name] = true;
+    if (editor.supportsCrit && h.kind === "known" && name === "typ" && obEnabled) {
+      warnings.push("typ is set by Open Banking (JOSE) — remove the typ row.");
+      return;
+    }
+    if (h.kind === "known" && name === "exp") {
+      const secs = validExpSeconds(h.value);
+      if (secs === null) {
+        warnings.push(`exp clock skew must be a whole number of seconds from ${EXP_MIN} to ${EXP_MAX}.`);
+        return;
+      }
+      headerValidation.exp = secs;
+    } else {
+      const value = coerce(h.type, h.value);
+      if (h.type === "number" && typeof value !== "number") { warnings.push(`"${name}" value is not a number.`); return; }
+      if (h.type === "string" && value === "") { warnings.push(`"${name}" has an empty value.`); return; }
+      headerValidation[name] = value;
+    }
+    if (editor.supportsCrit && h.critical) configuredCrit.push(name);
+  });
+  return { headerValidation: headerValidation, configuredCrit: configuredCrit };
 }
 
-function escapeAttr(s) { return String(s).replace(/"/g, "&quot;"); }
+// JWS editor: every known claim, crit supported. JWE editor: only typ + cty, no crit.
+const jwsEditor = new ClaimEditor({
+  rowsId: "headerRows", pickerId: "knownClaimPicker",
+  knownNames: ["cty", "typ", "exp", "aud", "iss"], supportsCrit: true,
+  initial: [{ kind: "known", name: "cty", type: "string", value: "application/json", critical: false }]
+});
+const jweEditor = new ClaimEditor({
+  rowsId: "jweHeaderRows", pickerId: "jweKnownClaimPicker",
+  knownNames: ["typ", "cty"], supportsCrit: false,
+  initial: [{ kind: "known", name: "cty", type: "string", value: "application/json", critical: false }]
+});
+
+function validExpSeconds(value) {
+  const s = String(value).trim();
+  const n = Number(s);
+  return s !== "" && Number.isInteger(n) && n >= EXP_MIN && n <= EXP_MAX ? n : null;
+}
+
+function escapeAttr(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
 
 function coerce(type, value) {
-  if (type === "number") { const n = Number(value); return isNaN(n) ? value : n; }
+  if (type === "number") {
+    const s = String(value).trim();
+    const n = Number(s);
+    return s === "" || !isFinite(n) ? value : n;
+  }
   if (type === "boolean") return value === "true" || value === true;
   return value;
 }
@@ -416,23 +709,35 @@ function update() {
   // OB panel
   $("obPanel").style.display = obEnabled ? "block" : "none";
 
-  // header validation object + configured crit + warnings
-  const headerValidation = {};
-  const configuredCrit = [];
   const warnings = [];
-  const seen = new Set();
 
-  headers.forEach(h => {
-    const name = (h.name || "").trim();
-    if (!name) return;
-    if (RESERVED.includes(name.toLowerCase())) {
-      warnings.push(`"${name}" is reserved and is managed by the runtime — remove it from header validation.`);
-      return;
-    }
-    if (seen.has(name)) { warnings.push(`Duplicate header "${name}".`); return; }
-    seen.add(name);
-    headerValidation[name] = coerce(h.type, h.value);
-    if (h.critical) configuredCrit.push(name);
+  // JWS header claims: static values -> jws.headerValidation, exp -> clock skew, ticked names -> crit
+  const jws = collectClaims(jwsEditor, obEnabled, warnings);
+  const headerValidation = jws.headerValidation;
+  const configuredCrit = jws.configuredCrit;
+
+  // JWE
+  const jweEnabled = $("jweEnabled").checked;
+  $("jwePanel").style.display = jweEnabled ? "block" : "none";
+  let jwe = null;
+  if (jweEnabled) {
+    const jweClaims = collectClaims(jweEditor, false, warnings);
+    jwe = {
+      key: $("jweKey").value,
+      content: $("jweContent").value,
+      headerValidation: jweClaims.headerValidation
+    };
+  }
+
+  // exp row notes (both editors): exp is the allowed clock-skew window, in seconds
+  document.querySelectorAll("[data-exp-note]").forEach(el => {
+    const ref = el.dataset.expNote.split(":");
+    const editor = ref[0] === "jweHeaderRows" ? jweEditor : jwsEditor;
+    const h = editor.headers[Number(ref[1])];
+    const secs = h ? validExpSeconds(h.value) : null;
+    el.textContent = secs === null
+      ? `Enter a clock-skew allowance of ${EXP_MIN}–${EXP_MAX} seconds.`
+      : `Clock skew: exp is stored in headerValidation as ${secs} (seconds of tolerance).`;
   });
 
   // derived crit
@@ -455,15 +760,16 @@ function update() {
     jws: {
       algorithm: obEnabled ? "PS256" : algorithm,
       profile: profile,
-      source: srcLocation === "MESSAGE_BODY"
-        ? { location: "MESSAGE_BODY", name: "message.content" }
-        : { location: "HEADER", name: srcName },
+      source: srcLocation === "MESSAGE_BODY" ? "message.content" : srcName,
       headerValidation: headerValidation,
       criticalHeaders: configuredCrit
     }
   };
   if (obEnabled) {
     kvm.jws.openBanking = { enabled: true, version: "3.1" };
+  }
+  if (jwe) {
+    kvm.jwe = jwe;
   }
 
   $("jsonOut").innerHTML = syntaxHighlight(kvm);
@@ -517,15 +823,13 @@ function syntaxHighlight(obj) {
 }
 
 // wire up events
-["profile","algorithm","srcLocation","srcName","obEnabled","scopeIn","scopeOut","scopeFault"].forEach(id => {
+["profile","algorithm","srcLocation","srcName","obEnabled","scopeIn","scopeOut","scopeFault",
+ "jweEnabled","jweKey","jweContent"].forEach(id => {
   $(id).addEventListener("input", update);
   $(id).addEventListener("change", update);
 });
-$("addHeader").addEventListener("click", () => {
-  headers.push({ name: "", type: "string", value: "", critical: false });
-  renderHeaderRows();
-  update();
-});
+$("addCustom").addEventListener("click", () => jwsEditor.addCustom());
+$("jweAddCustom").addEventListener("click", () => jweEditor.addCustom());
 $("copyBtn").addEventListener("click", () => {
   navigator.clipboard.writeText($("jsonOut").textContent).then(() => {
     $("copyBtn").textContent = "Copied";
@@ -544,7 +848,10 @@ $("obEnabled").addEventListener("change", () => {
   update();
 });
 
-renderHeaderRows();
+jwsEditor.initPicker();
+jweEditor.initPicker();
+jwsEditor.render();
+jweEditor.render();
 update();
 </script>
 </body>
