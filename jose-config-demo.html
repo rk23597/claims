@@ -760,7 +760,9 @@ function update() {
     jws: {
       algorithm: obEnabled ? "PS256" : algorithm,
       profile: profile,
-      source: srcLocation === "MESSAGE_BODY" ? "message.content" : srcName,
+      source: srcLocation === "MESSAGE_BODY"
+        ? { location: "MESSAGE_BODY", name: "message.content" }
+        : { location: "HEADER", name: srcName },
       headerValidation: headerValidation,
       criticalHeaders: configuredCrit
     }
