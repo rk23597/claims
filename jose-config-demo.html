@@ -252,13 +252,13 @@
     <!-- Source -->
     <div class="card">
       <h2><span class="num">3</span> JWS source</h2>
-      <p class="hint">Where the serialized JWS is read (IN) and written (OUT/FAULT). MESSAGE_BODY is fixed to <code>message.content</code>.</p>
+      <p class="hint">Where the serialized JWS is read (IN) and written (OUT/FAULT). PAYLOAD is fixed to <code>message.content</code>.</p>
       <div class="row">
         <div class="field">
           <label>Location</label>
           <select id="srcLocation">
             <option value="HEADER" selected>HEADER</option>
-            <option value="MESSAGE_BODY">MESSAGE_BODY</option>
+            <option value="PAYLOAD">PAYLOAD</option>
           </select>
         </div>
         <div class="field">
@@ -689,11 +689,11 @@ function update() {
   // source
   let srcLocation = $("srcLocation").value;
   let srcName = $("srcName").value;
-  if (srcLocation === "MESSAGE_BODY") {
+  if (srcLocation === "PAYLOAD") {
     srcName = "message.content";
     $("srcName").value = srcName;
     $("srcName").disabled = true;
-    $("srcNote").textContent = "Fixed to message.content for MESSAGE_BODY.";
+    $("srcNote").textContent = "Fixed to message.content for PAYLOAD.";
   } else {
     $("srcName").disabled = false;
     $("srcNote").textContent = "HTTP header carrying the detached signature.";
@@ -760,8 +760,8 @@ function update() {
     jws: {
       algorithm: obEnabled ? "PS256" : algorithm,
       profile: profile,
-      source: srcLocation === "MESSAGE_BODY"
-        ? { location: "MESSAGE_BODY", name: "message.content" }
+      source: srcLocation === "PAYLOAD"
+        ? { location: "PAYLOAD", name: "message.content" }
         : { location: "HEADER", name: srcName },
       headerValidation: headerValidation,
       criticalHeaders: configuredCrit
@@ -787,8 +787,8 @@ function update() {
     if (algorithm !== "PS256")
       warnings.push("Open Banking forces PS256 (algorithm overridden in the KVM preview).");
   }
-  if (info.detached && srcLocation === "MESSAGE_BODY")
-    warnings.push("Detached profiles must use a HEADER source, not MESSAGE_BODY.");
+  if (info.detached && srcLocation === "PAYLOAD")
+    warnings.push("Detached profiles must use a HEADER source, not PAYLOAD.");
 
   renderWarnings(warnings);
 }
