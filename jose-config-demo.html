@@ -348,6 +348,13 @@
             </select>
           </div>
         </div>
+        <label>JWE protection scope</label>
+        <p class="hint">Which messages JWE protects. Saved in <code>flags</code> as <code>requestDecryption</code>, <code>responseEncryption</code> and <code>faultEncryption</code>.</p>
+        <div class="row row-scope" style="margin-bottom:12px;">
+          <label class="toggle"><input type="checkbox" id="jweReqDecrypt" checked /><span>Request decryption</span></label>
+          <label class="toggle"><input type="checkbox" id="jweRespEncrypt" checked /><span>Response encryption</span></label>
+          <label class="toggle"><input type="checkbox" id="jweFaultEncrypt" checked /><span>Fault encryption</span></label>
+        </div>
         <label style="margin-top:4px;">JWE header validation</label>
         <p class="hint">Same editor as JWS, but only <b>typ</b> and <b>cty</b> are known claims; use <b>+ Custom claim</b> for anything else. Saved under <code>jwe.headerValidation</code>. Reserved names (alg, kid, crit, b64, enc) are blocked.</p>
         <div class="claim-toolbar">
@@ -771,6 +778,10 @@ function update() {
     kvm.jws.openBanking = { enabled: true, version: "3.1" };
   }
   if (jwe) {
+    // JWE scope flags live in the top-level flags object, only while JWE is enabled
+    kvm.flags.requestDecryption = $("jweReqDecrypt").checked;
+    kvm.flags.responseEncryption = $("jweRespEncrypt").checked;
+    kvm.flags.faultEncryption = $("jweFaultEncrypt").checked;
     kvm.jwe = jwe;
   }
 
@@ -826,7 +837,7 @@ function syntaxHighlight(obj) {
 
 // wire up events
 ["profile","algorithm","srcLocation","srcName","obEnabled","scopeIn","scopeOut","scopeFault",
- "jweEnabled","jweKey","jweContent"].forEach(id => {
+ "jweEnabled","jweKey","jweContent","jweReqDecrypt","jweRespEncrypt","jweFaultEncrypt"].forEach(id => {
   $(id).addEventListener("input", update);
   $(id).addEventListener("change", update);
 });
